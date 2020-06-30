@@ -12,3 +12,9 @@ data_*/
 
 # compiled android package
 *.apk
+
+# crash log
+mono_crash.*.json
+
+# not updated project file
+*.old
