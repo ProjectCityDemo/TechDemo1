@@ -1,0 +1,58 @@
+{
+    "sources":
+    [
+        {
+            "x": 100,
+            "y": 800,
+            "cost": 10,
+            "active": true
+        }
+    ],
+    "sinks":
+    [
+        {
+            "x": 800,
+            "y": 100,
+            "cost": 10,
+            "active": false
+        }
+    ],
+    "nodes":
+    [
+        {
+            "x": 450,
+            "y": 450,
+            "cost": 10,
+            "active": false
+        }
+    ],
+    "edges":
+    [
+        {
+            "capacity": 10,
+            "link":
+            [
+                {
+                    "type": "source",
+                    "index": 0
+                },
+                {   "type": "node",
+                    "index": 0
+                }
+            ]
+        },
+        {
+            "capacity": 20,
+            "link":
+            [
+                {
+                    "type": "sink",
+                    "index": 0
+                },
+                {   "type": "node",
+                    "index": 0
+                }
+            ]
+        }
+    ]
+}

@@ -5,91 +5,160 @@
 
 using Godot;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+
+public enum NodeType
+{
+	NODETYPE_NORMAL = 0,
+	NODETYPE_SOURCE = 1,
+	NODETYPE_SINK = 2
+}
 
 public enum NodeState
 {
-    NODE_INACTIVE = 0,
-    NODE_ACTIVE = 1
+	NODE_INACTIVE = 0,
+	NODE_ACTIVE = 1
 }
 
 public enum EdgeState
 {
-        EDGE_INACTIVE = 0,
-        EDGE_SEMIACTIVE = 1,
-        EDGE_ACTIVE = 2
+		EDGE_INACTIVE = 0,
+		EDGE_SEMIACTIVE = 1, // for rendering purpose only
+		EDGE_ACTIVE = 2
 }
 
 public class NodeInternal
 {
-    public int x { set; get; }
-    public int y { set; get; }
-    public NodeState state = NodeState.NODE_INACTIVE;
+	public float Cost;
 
-    public bool IsSource = false;
-    public bool IsSink = false;
+	public NodeState State;
 
-    public NodeInternal(int x, int y)
-    {
-        this.x = x;
-        this.y = y;
-    }
+	public NodeType Type;
 
-    public NodeInternal() {}
+	public Tuple<int, int> Coord;
+
+	public bool IsActive() { return State == NodeState.NODE_ACTIVE; }
+	public NodeInternal(int Cost, NodeState State, NodeType Type, int x, int y)
+	{ this.Cost = Cost; this.State = State; this.Type = Type; this.Coord = new Tuple<int, int>(x,y); }
 }
 
 public class EdgeInternal
 {
+	public float Capacity;
 
-    public float capacity = 10;
-    public EdgeState state = EdgeState.EDGE_INACTIVE;
+	public Tuple<NodeInternal, NodeInternal> Refs;
 
-    private NodeInternal a;
-    private NodeInternal b;
+	private EdgeState _State()
+	{
+		if (Refs.Item1.IsActive() && Refs.Item2.IsActive())
+		{
+			return EdgeState.EDGE_ACTIVE;
+		}
+		else if (!Refs.Item1.IsActive() && !Refs.Item2.IsActive())
+		{
+			return EdgeState.EDGE_INACTIVE;
+		}
+		else
+		{
+			return EdgeState.EDGE_SEMIACTIVE;
+		}
+	}
 
-    public EdgeInternal(NodeInternal a, NodeInternal b)
-    {
-        this.a = a;
-        this.b = b;
-    }
+	public EdgeState State { get=>_State(); }
+	
+	public bool IsActive() { return State == EdgeState.EDGE_ACTIVE; }
 }
 
 public class NetworkInternal
 {
-    public NodeInternal[] nodes;
-    public EdgeInternal[] edges;
+	public List<NodeInternal> Nodes;
+	public List<EdgeInternal> Edges;
 
-    public float CalculateFlow()
-    {
-        //TODO
-        return 0;
-    }
+	public float CalculateFlow()
+	{
+		var activeNodes = Nodes.Where(node => node.IsActive()).ToList();
+		var activeEdges = Edges.Where(edge => edge.IsActive()).ToList();
+		//TODO
+		return 0;
+	}
+
+	public NetworkInternal(string JsonPath="res://stgdata/demo-r.json")
+	{
+		this.Nodes = new List<NodeInternal>();
+		var jsonString = System.IO.File.ReadAllText(JsonPath);
+		using (JsonDocument document = JsonDocument.Parse(jsonString))
+		{
+			JsonElement root = document.RootElement;
+			JsonElement sources = root.GetProperty("sources");
+			JsonElement sinks = root.GetProperty("sinks");
+			JsonElement nodes = root.GetProperty("nodes");
+			JsonElement edges = root.GetProperty("edges");
+
+			foreach (JsonElement source in sources.EnumerateArray())
+			{
+				var x = source.GetProperty("x").GetInt32();
+				var y = source.GetProperty("y").GetInt32();
+				var cost = source.GetProperty("cost").GetInt32();
+				var active = source.GetProperty("active").GetBoolean();
+				var state = active ? NodeState.NODE_ACTIVE : NodeState.NODE_INACTIVE;
+				this.Nodes.Add(new NodeInternal(cost, state, NodeType.NODETYPE_SOURCE, x, y));
+			}
+
+			foreach (JsonElement sink in sinks.EnumerateArray())
+			{
+				var x = sink.GetProperty("x").GetInt32();
+				var y = sink.GetProperty("y").GetInt32();
+				var cost = sink.GetProperty("cost").GetInt32();
+				var active = sink.GetProperty("active").GetBoolean();
+				var state = active ? NodeState.NODE_ACTIVE : NodeState.NODE_INACTIVE;
+				this.Nodes.Add(new NodeInternal(cost, state, NodeType.NODETYPE_SINK, x, y));
+			}
+
+			foreach (JsonElement node in nodes.EnumerateArray())
+			{
+				var x = node.GetProperty("x").GetInt32();
+				var y = node.GetProperty("y").GetInt32();
+				var cost = node.GetProperty("cost").GetInt32();
+				var active = node.GetProperty("active").GetBoolean();
+				var state = active ? NodeState.NODE_ACTIVE : NodeState.NODE_INACTIVE;
+				this.Nodes.Add(new NodeInternal(cost, state, NodeType.NODETYPE_NORMAL, x, y));
+			}
+
+			foreach (JsonElement edge in edges.EnumerateArray())
+			{
+				//困了，明天写，咕咕咕
+			}
+
+		}
+		//TODO: Construct Network from JSON
+	}
 }
 
 
 public class Network : Node2D
 {
-    // Declare member variables here. Examples:
-    // private int a = 2;
-    // private string b = "text";
+	// Declare member variables here. Examples:
+	// private int a = 2;
+	// private string b = "text";
 
-    private NetworkInternal InternalNetwork;
+	private NetworkInternal InternalNetwork;
 
 
-    [Signal]
-    public delegate void CostConsume(int CostValue, int NodeID); // emit NodeID to understand the NodeInternal to activate.
+	[Signal]
+	public delegate void CostConsume(float CostValue, int NodeID); // emit NodeID to understand the NodeInternal to activate.
 
-    public void ActivateNode(int NodeID)
-    {
+	public void ActivateNode(int NodeID)
+	{
 
-    }
+	}
 
-    // Called when the node enters the scene tree for the first time.
-    public override void _Ready()
-    {
-        // TODO: load stage data from JSON
-        InternalNetwork.nodes = new NodeInternal[2] {new NodeInternal(160, 800), new NodeInternal(800, 160)};
-        InternalNetwork.edges = new EdgeInternal[1] {new EdgeInternal(InternalNetwork.nodes[0], InternalNetwork.nodes[1])};
-    }
+	// Called when the node enters the scene tree for the first time.
+	public override void _Ready()
+	{
+		// TODO: load stage data from JSON
+	}
 
 //  // Called every frame. 'delta' is the elapsed time since the previous frame.
 //  public override void _Process(float delta)
