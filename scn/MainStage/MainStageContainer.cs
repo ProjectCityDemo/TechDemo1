@@ -7,36 +7,38 @@ public class MainStageContainer : HBoxContainer
 	// private int a = 2;
 	// private string b = "text";
 	
-	private int w = 0;
-	private int h = 0;
-	private float cost = 0;
+	private int Width = 0;
+	private int Height = 0;
+	private float Cost = 0;
 	
 	private void PrepareStageRhythm()
 	{
 		var packedStageRhythm = GD.Load<PackedScene>("res://scn/StageRhythm.tscn");
-		var StageRhythmScn = packedStageRhythm.Instance();
-		AddChild(StageRhythmScn);
-		var StageRhythm = GetNode<StageRhythm>("StageRhythm");
+		var stageRhythmScn = packedStageRhythm.Instance();
+		AddChild(stageRhythmScn);
+		var stageRhythm = GetNode<StageRhythm>("StageRhythm");
 		
 		
-		if (w != 1920 || h != 1080) {
-			StageRhythm.FitDimension(w, h);
+		if (Width != 1920 || Height != 1080) {
+			stageRhythm.FitDimension(Width, Height);
 		}
 	}
 	
 	private void PrepareStageNetwork()
 	{
 		var packedStageNetwork = GD.Load<PackedScene>("res://scn/StageNetwork.tscn");
-		var StageNetworkScn = packedStageNetwork.Instance();
-		AddChild(StageNetworkScn);
-		var StageNetwork = GetNode<StageNetwork>("StageNetwork");
+		var stageNetworkScn = packedStageNetwork.Instance();
+		AddChild(stageNetworkScn);
+		var stageNetwork = GetNode<StageNetwork>("StageNetwork");
 		
 		
-		if (w != 1920 || h != 1080) {
-			StageNetwork.FitDimension(w, h);
+		if (Width != 1920 || Height != 1080) {
+			stageNetwork.FitDimension(Width, Height);
 		}
 		
-		StageNetwork.Position = new Vector2(w / 2, 0);
+		stageNetwork.Position = new Vector2(Width / 2, 0);
+
+		Connect(nameof(ActivateNode), stageNetwork.RenderingNetwork, "ActivateNodeImpl");
 	}
 	
 	private void PrepareHUD()
@@ -44,19 +46,31 @@ public class MainStageContainer : HBoxContainer
 		var HUD = GetNode<Node2D>("HUD");
 		var CostLabel = GetNode<Label>("HUD/CostLabel");
 		var FlowLabel = GetNode<Label>("HUD/FlowLabel");
-		if (w != 1920 || h != 1080) {
-			CostLabel.SetGlobalPosition(new Vector2(w/2, 0));
-			FlowLabel.SetGlobalPosition(new Vector2(w/2, 50));
+		if (Width != 1920 || Height != 1080) {
+			CostLabel.SetGlobalPosition(new Vector2(Width/2, 0));
+			FlowLabel.SetGlobalPosition(new Vector2(Width/2, 50));
 		}
 		HUD.ZIndex = 1;
 	}
 	
+	[Signal]
+	public delegate void ActivateNode(int NodeID); // emit signal to StageNetwork
+
+	public void ProcessCostConsume(float CostValue, int NodeID)
+	{
+		if (Cost > CostValue)
+		{
+			Cost -= CostValue;
+			EmitSignal(nameof(ActivateNode), NodeID);
+		}
+	}
+
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
 		var initialSize = GetNode<Viewport>("/root").Size;
-		w = (int) initialSize.x;
-		h = (int) initialSize.y;
+		Width = (int) initialSize.x;
+		Height = (int) initialSize.y;
 		
 		PrepareStageRhythm();
 		PrepareStageNetwork();
@@ -66,9 +80,9 @@ public class MainStageContainer : HBoxContainer
 //  // Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(float delta)
 	{
-		cost += delta * 5;
+		Cost += delta * 5;
 		var CostLabel = GetNode<Label>("HUD/CostLabel");
-		var displayCost = (int) cost;
+		var displayCost = (int) Cost;
 		CostLabel.Text = "Cost: " + displayCost.ToString();
 	}
 }

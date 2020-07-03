@@ -8,9 +8,12 @@ public class StageNetwork : Node2D
 	// private string b = "text";
 
 	// Called when the node enters the scene tree for the first time.
+
+	public Network RenderingNetwork;
 	public override void _Ready()
 	{
-		
+		RenderingNetwork = new Network();
+		AddChild(RenderingNetwork);
 	}
 	
 	public void FitDimension(int dev_w, int dev_h)

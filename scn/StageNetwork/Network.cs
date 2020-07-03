@@ -48,6 +48,8 @@ public class EdgeInternal
 {
 	public float Capacity;
 
+	public float Flow;
+
 	public Tuple<NodeInternal, NodeInternal> Refs;
 
 	private EdgeState _State()
@@ -69,6 +71,8 @@ public class EdgeInternal
 	public EdgeState State { get=>_State(); }
 	
 	public bool IsActive() { return State == EdgeState.EDGE_ACTIVE; }
+
+	public EdgeInternal(float capacity, NodeInternal ref1, NodeInternal ref2) { this.Capacity = capacity; this.Refs = new Tuple<NodeInternal, NodeInternal>(ref1, ref2); }
 }
 
 public class NetworkInternal
@@ -80,13 +84,88 @@ public class NetworkInternal
 	{
 		var activeNodes = Nodes.Where(node => node.IsActive()).ToList();
 		var activeEdges = Edges.Where(edge => edge.IsActive()).ToList();
-		//TODO
-		return 0;
+
+		var sourceNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SOURCE).ToList();
+		var sinkNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SINK).ToList();
+
+		if (!sourceNodes[0].IsActive() || !sinkNodes[0].IsActive()) { return 0; }
+
+        //for each optimization, the optimized flow that passes node "x" will only come from one edge
+        List<int>[] graph;
+		// graph: node "x" has a list "graph[x]", and "graph[x]" stores the index(es) of edge(s) in "edgesForCalculation" that starts with node "x"
+        graph = new List<int>[activeNodes.Count()]; 
+		// augment: node "x" has a float "augment[x]", and "augment[x]" stores the flow that passes node "x" during each optimization
+        var augment = new float[activeNodes.Count()]; 
+
+		// previous: node "x" has a int "previous[x]", and "previous[x]" stores the index of edge in "edgesForCalculation"
+		// from which the flow "augment[x]" comes
+        // in other words, node "x" will always be the outlet in edgesForCalculation[previous[x]] (it is an edge)
+        var previous = new int[activeNodes.Count()]; 
+
+        List<EdgeInternal> edgesForCalculation = new List<EdgeInternal>();
+		
+		for (int i = 0; i < activeEdges.Count(); i++)
+		{
+            //for each active edge (in out capacity flow), there will also be an edge (out in capacity flow) in "edgesForCalculation"
+            edgesForCalculation.Add(activeEdges[i]);
+			EdgeInternal tempEdge = new EdgeInternal(activeEdges[i].Capacity, activeEdges[i].Refs.Item2, activeEdges[i].Refs.Item1);
+			edgesForCalculation.Add(tempEdge);
+            // for origin edge (in out capacity flow), node "in" will be the inlet of "edgesForCalculation[2*i]", and "out" will be the inlet of "edgesForCalculation[2*i+1]"
+            // this information will be stored in "graph"
+            var index_in = activeNodes.IndexOf(activeEdges[i].Refs.Item1);
+			var index_out = activeNodes.IndexOf(activeEdges[i].Refs.Item2);
+			graph[index_in].Add(2*i);
+			graph[index_out].Add(2*i+1);
+		}
+		
+		float totalFlow = 0;
+		while(true)
+		{
+			Array.Clear(augment, 0, augment.Length);
+            List<int> travel = new List<int>(); // For each optimization, "Travel" will store, up till now, the index(es) of the inlet node(s) in "activeNodes" of this optimization
+			var sourceIndex = activeNodes.IndexOf(sourceNodes[0]);
+			var sinkIndex = activeNodes.IndexOf(sinkNodes[0]);
+			
+			travel.Add(sourceIndex);// "source" is the first inlet node of each optimization
+			augment[sourceIndex]=float.MaxValue;// for each optimization, the flow that passes "source" is always infinite
+			
+			while(travel.Any())
+			{
+				int tempIndex = travel[travel.Count()-1]; // inlet point that will be considered this time
+				travel.RemoveAt(travel.Count()-1);
+				for (int i = 0; i < graph[tempIndex].Count(); ++i) // consider all the edges in which point "tempIndex" is inlet
+                {
+					EdgeInternal tempEdge = edgesForCalculation[graph[tempIndex][i]]; // edge that will be considered this time
+                    var tempOutIndex = activeNodes.IndexOf(tempEdge.Refs.Item2);
+				
+					if (augment[tempOutIndex] == 0 && tempEdge.Capacity > tempEdge.Flow) // "!augment[tempOutIndex]": the optimized augment of each node will only comes from one edge for each optimization
+                    { 
+						previous[tempOutIndex] = graph[tempIndex][i]; // "Graph[tempIndex][i]" is the index of edge from which the augment of point "tempOutIndex" comes from
+                        augment[tempOutIndex] = (augment[tempIndex] < (tempEdge.Capacity - tempEdge.Flow) ? augment[tempIndex] : (tempEdge.Capacity - tempEdge.Flow));
+                        // "augment[tempOutIndex]" = min{augment of the inlet node, (capacity-flow) of this edge}
+                        travel.Add(tempOutIndex); // next time the node "tempOutIndex" will be the inlet that needs to be considered
+                    }
+				}
+				if (augment[sinkIndex] == 0) break; // break this optimization if there is optimized augment in "sink"
+			}
+			if (augment[sinkIndex] == 0) break; // break the max flow calculation if after a thorough optimization, there is no extra augment that passes "sink"
+			
+			for (int i = sinkIndex; i != sourceIndex; i = activeNodes.IndexOf(edgesForCalculation[previous[i]].Refs.Item1)) // i will be each point that this time the augment passes through
+			{
+				edgesForCalculation[previous[i]].Flow += augment[sinkIndex]; // "edgesForCalculation[Previous[i]]" is the edge from where the augment of node "i" comes from
+                edgesForCalculation[previous[i] ^ 1].Flow -= augment[sinkIndex]; // "edgesForCalculation[Previous[i] ^ 1]" is the opposite edge of the previous one
+            }
+			totalFlow += augment[sinkIndex];
+		}
+		
+		return totalFlow;
+
 	}
 
-	public NetworkInternal(string JsonPath="res://stgdata/demo-r.json")
+	public NetworkInternal(string JsonPath="stgdata/demo-r.json")
 	{
 		this.Nodes = new List<NodeInternal>();
+		this.Edges = new List<EdgeInternal>();
 		var jsonString = System.IO.File.ReadAllText(JsonPath);
 		using (JsonDocument document = JsonDocument.Parse(jsonString))
 		{
@@ -95,6 +174,10 @@ public class NetworkInternal
 			JsonElement sinks = root.GetProperty("sinks");
 			JsonElement nodes = root.GetProperty("nodes");
 			JsonElement edges = root.GetProperty("edges");
+
+			var numSources = sources.GetArrayLength();
+			var numSinks = sinks.GetArrayLength();
+			var numNodes = nodes.GetArrayLength();
 
 			foreach (JsonElement source in sources.EnumerateArray())
 			{
@@ -128,11 +211,50 @@ public class NetworkInternal
 
 			foreach (JsonElement edge in edges.EnumerateArray())
 			{
-				//困了，明天写，咕咕咕
+				var capacity = edge.GetProperty("capacity").GetInt32();
+				var link = edge.GetProperty("link").EnumerateArray().ToArray();
+				var type1 = link[0].GetProperty("type").GetString();
+				var idx1 = link[0].GetProperty("index").GetInt32();
+				var offset1 = 0;
+
+				switch(type1)
+				{
+					case "source":
+						offset1 = 0;
+						break;
+					case "sink":
+						offset1 = numSources;
+						break;
+					case "node":
+						offset1 = numSources + numSinks;
+						break;
+				}
+
+				NodeInternal ref1 = this.Nodes[offset1 + idx1];
+
+				var type2 = link[1].GetProperty("type").GetString();
+				var idx2 = link[1].GetProperty("index").GetInt32();
+				var offset2 = 0;
+
+				switch(type2)
+				{
+					case "source":
+						offset2 = 0;
+						break;
+					case "sink":
+						offset2 = numSources;
+						break;
+					case "node":
+						offset2 = numSources + numSinks;
+						break;
+				}
+
+				NodeInternal ref2 = this.Nodes[offset2 + idx2];
+				var newEdge = new EdgeInternal(capacity, ref1, ref2);
+				this.Edges.Add(newEdge);
 			}
 
 		}
-		//TODO: Construct Network from JSON
 	}
 }
 
@@ -143,21 +265,31 @@ public class Network : Node2D
 	// private int a = 2;
 	// private string b = "text";
 
-	private NetworkInternal InternalNetwork;
+	private NetworkInternal InternalNetwork = new NetworkInternal();
 
 
 	[Signal]
 	public delegate void CostConsume(float CostValue, int NodeID); // emit NodeID to understand the NodeInternal to activate.
 
-	public void ActivateNode(int NodeID)
+	public void ActivateNode(NodeInternal node)
 	{
+		if (node.IsActive()) return;
+		var idx = InternalNetwork.Nodes.IndexOf(node);
+		var cost = node.Cost;
+		EmitSignal(nameof(CostConsume), cost, idx);
+	}
 
+	public void ActivateNodeImpl(int NodeID)
+	{
+		InternalNetwork.Nodes[NodeID].State = NodeState.NODE_ACTIVE;
 	}
 
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
-		// TODO: load stage data from JSON
+		var mainStageContainer = GetNode<MainStageContainer>("../../../MainStageContainer");
+		Connect(nameof(CostConsume), mainStageContainer, "ProcessCostConsume");
+		// TODO: draw the network onto screen
 	}
 
 //  // Called every frame. 'delta' is the elapsed time since the previous frame.
