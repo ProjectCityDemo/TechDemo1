@@ -289,7 +289,56 @@ public class Network : Node2D
 	{
 		var mainStageContainer = GetNode<MainStageContainer>("../../../MainStageContainer");
 		Connect(nameof(CostConsume), mainStageContainer, "ProcessCostConsume");
-		// TODO: draw the network onto screen
+	}
+
+	public override void _Draw()
+	{
+		var colorNodeInactive = new Color(0.2f, 0.2f, 0.2f);
+		var colorNodeActive = new Color(0, 1, 0);
+		var colorEdgeActive = new Color(1, 0, 0);
+		var colorEdgeSemiactive = new Color(1, 1, 0);
+		var colorEdgeInactive = new Color(0.2f, 0.2f, 0.2f);
+		var nodeRadius = 15;
+		var edgeWidth = 5;
+
+		foreach (var edge in InternalNetwork.Edges)
+		{
+			var dx = edge.Refs.Item2.Coord.Item1 - edge.Refs.Item1.Coord.Item1;
+			var dy = edge.Refs.Item2.Coord.Item2 - edge.Refs.Item1.Coord.Item2;
+			var theta = Math.Atan2(dy, dx);
+			var phi = theta + Math.PI / 2;
+			var offsetx = (float) Math.Cos(phi) * edgeWidth / 2;
+			var offsety = (float) Math.Sin(phi) * edgeWidth / 2;
+
+			var p1 = new Vector2(edge.Refs.Item1.Coord.Item1 + offsetx, edge.Refs.Item1.Coord.Item2 + offsety);
+			var p2 = new Vector2(edge.Refs.Item1.Coord.Item1 - offsetx, edge.Refs.Item1.Coord.Item2 - offsety);
+			var p3 = new Vector2(edge.Refs.Item2.Coord.Item1 - offsetx, edge.Refs.Item2.Coord.Item2 - offsety);
+			var p4 = new Vector2(edge.Refs.Item2.Coord.Item1 + offsetx, edge.Refs.Item2.Coord.Item2 + offsety);
+
+			Color color;
+
+			switch (edge.State)
+			{
+				case EdgeState.EDGE_ACTIVE:
+					color = colorEdgeActive;
+					break;
+				case EdgeState.EDGE_SEMIACTIVE:
+					color = colorEdgeSemiactive;
+					break;
+				default:
+					color = colorNodeInactive;
+					break;
+			}
+
+			DrawColoredPolygon(new Vector2[]{p1, p2, p3, p4}, color);
+		}
+
+		foreach (var node in InternalNetwork.Nodes)
+		{
+			var color = node.IsActive() ? colorNodeActive : colorNodeInactive;
+			DrawCircle(new Vector2(node.Coord.Item1, node.Coord.Item2), nodeRadius, color);
+		}
+
 	}
 
 //  // Called every frame. 'delta' is the elapsed time since the previous frame.
