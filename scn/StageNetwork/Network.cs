@@ -306,6 +306,9 @@ public class Network : Node2D
 
 	private void RefreshTexture()
 	{
+		//Debug
+		GD.Print(InternalNetwork.CalculateFlow());
+
 		foreach (var edge in InternalNetwork.Edges)
 		{
 			var sceneEdge = GetNode<NetworkEdge>("SceneEdge_" + InternalNetwork.Edges.IndexOf(edge).ToString()); 
