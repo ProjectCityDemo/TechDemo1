@@ -14,7 +14,7 @@
             "x": 800,
             "y": 100,
             "cost": 10,
-            "active": false
+            "active": true
         }
     ],
     "nodes":

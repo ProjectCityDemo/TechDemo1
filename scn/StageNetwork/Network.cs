@@ -82,6 +82,7 @@ public class NetworkInternal
 
 	public float CalculateFlow()
 	{
+		// TODO: fix
 		var activeNodes = Nodes.Where(node => node.IsActive()).ToList();
 		var activeEdges = Edges.Where(edge => edge.IsActive()).ToList();
 
@@ -93,7 +94,13 @@ public class NetworkInternal
         //for each optimization, the optimized flow that passes node "x" will only come from one edge
         List<int>[] graph;
 		// graph: node "x" has a list "graph[x]", and "graph[x]" stores the index(es) of edge(s) in "edgesForCalculation" that starts with node "x"
-        graph = new List<int>[activeNodes.Count()]; 
+        graph = new List<int>[activeNodes.Count()];
+
+		for (int i = 0; i < activeNodes.Count(); i++)
+		{
+			graph[i] = new List<int>();
+		}
+
 		// augment: node "x" has a float "augment[x]", and "augment[x]" stores the flow that passes node "x" during each optimization
         var augment = new float[activeNodes.Count()]; 
 
@@ -159,7 +166,6 @@ public class NetworkInternal
 		}
 		
 		return totalFlow;
-
 	}
 
 	public NetworkInternal(string JsonPath="stgdata/demo-r.json")
@@ -282,8 +288,9 @@ public class Network : Node2D
 	[Signal]
 	public delegate void CostConsume(float CostValue, int NodeID); // emit NodeID to understand the NodeInternal to activate.
 
-	public void ActivateNode(NodeInternal node)
+	public void ActivateNode(int NodeID)
 	{
+		var node = InternalNetwork.Nodes[NodeID];
 		if (node.IsActive()) return;
 		var idx = InternalNetwork.Nodes.IndexOf(node);
 		var cost = node.Cost;
@@ -293,6 +300,7 @@ public class Network : Node2D
 	public void ActivateNodeImpl(int NodeID)
 	{
 		InternalNetwork.Nodes[NodeID].State = NodeState.NODE_ACTIVE;
+		RefreshTexture();
 	}
 
 
@@ -372,7 +380,9 @@ public class Network : Node2D
 		foreach (var node in InternalNetwork.Nodes)
 		{
 			var sceneNode = (NetworkNode)PackedNodeScene.Instance();
-			sceneNode.Name = "SceneNode_" + InternalNetwork.Nodes.IndexOf(node).ToString();
+			var nodeID = InternalNetwork.Nodes.IndexOf(node);
+			sceneNode.NodeID = nodeID;
+			sceneNode.Name = "SceneNode_" + nodeID.ToString();
 			AddChild(sceneNode);
 			sceneNode.Position = new Vector2(node.Coord.Item1, node.Coord.Item2);
 			sceneNode.Scale = new Vector2(0.4f, 0.4f);
