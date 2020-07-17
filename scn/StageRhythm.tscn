@@ -8,7 +8,7 @@ script = ExtResource( 1 )
 [node name="BGRect" type="ColorRect" parent="."]
 margin_right = 960.0
 margin_bottom = 1080.0
-color = Color( 0.678431, 0.372549, 0.333333, 1 )
+color = Color( 0.980392, 0.803922, 0.537255, 1 )
 __meta__ = {
 "_edit_use_anchors_": false
 }

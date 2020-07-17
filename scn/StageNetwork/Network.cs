@@ -122,7 +122,7 @@ public class NetworkInternal
 		while(true)
 		{
 			Array.Clear(augment, 0, augment.Length);
-            List<int> travel = new List<int>(); // For each optimization, "Travel" will store, up till now, the index(es) of the inlet node(s) in "activeNodes" of this optimization
+            List<int> travel = new List<int>(); // For each optimization, "travel" will store, up till now, the index(es) of the inlet node(s) in "activeNodes" of this optimization
 			var sourceIndex = activeNodes.IndexOf(sourceNodes[0]);
 			var sinkIndex = activeNodes.IndexOf(sinkNodes[0]);
 			
@@ -266,6 +266,17 @@ public class Network : Node2D
 	// private string b = "text";
 
 	private NetworkInternal InternalNetwork = new NetworkInternal();
+	private PackedScene PackedNodeScene = GD.Load<PackedScene>("res://scn/NetworkNode.tscn");
+	private PackedScene PackedEdgeScene = GD.Load<PackedScene>("res://scn/NetworkEdge.tscn");
+
+	private Texture SourceNodeTexture = GD.Load<Texture>("res://texture/texture_node_source.png");
+	private Texture SinkNodeTexture = GD.Load<Texture>("res://texture/texture_node_sink.png");
+	private Texture ActiveNodeTexture = GD.Load<Texture>("res://texture/texture_node_active.png");
+	private Texture InactiveNodeTexture = GD.Load<Texture>("res://texture/texture_node_inactive.png");
+	private Texture ActiveEdgeTexture = GD.Load<Texture>("res://texture/texture_edge_active.png");
+	private Texture InactiveEdgeTexture = GD.Load<Texture>("res://texture/texture_edge_inactive.png");
+	private Texture SemiactiveEdgeTexture = GD.Load<Texture>("res://texture/texture_edge_semiactive.png");
+
 
 
 	[Signal]
@@ -284,61 +295,95 @@ public class Network : Node2D
 		InternalNetwork.Nodes[NodeID].State = NodeState.NODE_ACTIVE;
 	}
 
+
+	private void RefreshTexture()
+	{
+		foreach (var edge in InternalNetwork.Edges)
+		{
+			var sceneEdge = GetNode<NetworkEdge>("SceneEdge_" + InternalNetwork.Edges.IndexOf(edge).ToString()); 
+
+			if (edge.State == EdgeState.EDGE_ACTIVE)
+			{
+				sceneEdge.SetSpriteTexture(ActiveEdgeTexture);
+			}
+			else if (edge.State == EdgeState.EDGE_INACTIVE)
+			{
+				sceneEdge.SetSpriteTexture(InactiveEdgeTexture);
+			}
+			else
+			{
+				sceneEdge.SetSpriteTexture(SemiactiveEdgeTexture);
+			}
+
+		}
+
+		foreach (var node in InternalNetwork.Nodes)
+		{
+			var sceneNode = GetNode<NetworkNode>("SceneNode_" + InternalNetwork.Nodes.IndexOf(node).ToString()); 
+
+			if (node.Type == NodeType.NODETYPE_SOURCE)
+			{
+				sceneNode.SetTexture(SourceNodeTexture);
+			}
+			else if (node.Type == NodeType.NODETYPE_SINK)
+			{
+				sceneNode.SetTexture(SinkNodeTexture);
+			}
+			else
+			{
+				if (node.IsActive())
+				{
+					sceneNode.SetTexture(ActiveNodeTexture);
+				}
+				else
+				{
+					sceneNode.SetTexture(InactiveNodeTexture);
+				}
+			}
+
+		}
+	}
+
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
 		var mainStageContainer = GetNode<MainStageContainer>("../../../MainStageContainer");
 		Connect(nameof(CostConsume), mainStageContainer, "ProcessCostConsume");
-	}
 
-	public override void _Draw()
-	{
-		var colorNodeInactive = new Color(0.2f, 0.2f, 0.2f);
-		var colorNodeActive = new Color(0, 1, 0);
-		var colorEdgeActive = new Color(1, 0, 0);
-		var colorEdgeSemiactive = new Color(1, 1, 0);
-		var colorEdgeInactive = new Color(0.2f, 0.2f, 0.2f);
-		var nodeRadius = 15;
-		var edgeWidth = 5;
+		var edgeWidth = 8;
 
 		foreach (var edge in InternalNetwork.Edges)
 		{
 			var dx = edge.Refs.Item2.Coord.Item1 - edge.Refs.Item1.Coord.Item1;
 			var dy = edge.Refs.Item2.Coord.Item2 - edge.Refs.Item1.Coord.Item2;
-			var theta = Math.Atan2(dy, dx);
-			var phi = theta + Math.PI / 2;
-			var offsetx = (float) Math.Cos(phi) * edgeWidth / 2;
-			var offsety = (float) Math.Sin(phi) * edgeWidth / 2;
+			var distance = (float)Math.Sqrt(dx * dx + dy * dy);
+			var theta = (float)Math.Atan2(dy, dx);
 
-			var p1 = new Vector2(edge.Refs.Item1.Coord.Item1 + offsetx, edge.Refs.Item1.Coord.Item2 + offsety);
-			var p2 = new Vector2(edge.Refs.Item1.Coord.Item1 - offsetx, edge.Refs.Item1.Coord.Item2 - offsety);
-			var p3 = new Vector2(edge.Refs.Item2.Coord.Item1 - offsetx, edge.Refs.Item2.Coord.Item2 - offsety);
-			var p4 = new Vector2(edge.Refs.Item2.Coord.Item1 + offsetx, edge.Refs.Item2.Coord.Item2 + offsety);
+			var anchorPoint = new Vector2((edge.Refs.Item2.Coord.Item1 + edge.Refs.Item1.Coord.Item1) / 2,
+			 (edge.Refs.Item2.Coord.Item2 + edge.Refs.Item1.Coord.Item2) / 2);
 
-			Color color;
-
-			switch (edge.State)
-			{
-				case EdgeState.EDGE_ACTIVE:
-					color = colorEdgeActive;
-					break;
-				case EdgeState.EDGE_SEMIACTIVE:
-					color = colorEdgeSemiactive;
-					break;
-				default:
-					color = colorNodeInactive;
-					break;
-			}
-
-			DrawColoredPolygon(new Vector2[]{p1, p2, p3, p4}, color);
+			var sceneEdge = (NetworkEdge)PackedEdgeScene.Instance();
+			sceneEdge.Name = "SceneEdge_" + InternalNetwork.Edges.IndexOf(edge).ToString();
+			AddChild(sceneEdge);
+			sceneEdge.SetSpriteTransform(edgeWidth, distance, -theta);
+			sceneEdge.Position = anchorPoint;
 		}
 
 		foreach (var node in InternalNetwork.Nodes)
 		{
-			var color = node.IsActive() ? colorNodeActive : colorNodeInactive;
-			DrawCircle(new Vector2(node.Coord.Item1, node.Coord.Item2), nodeRadius, color);
+			var sceneNode = (NetworkNode)PackedNodeScene.Instance();
+			sceneNode.Name = "SceneNode_" + InternalNetwork.Nodes.IndexOf(node).ToString();
+			AddChild(sceneNode);
+			sceneNode.Position = new Vector2(node.Coord.Item1, node.Coord.Item2);
+			sceneNode.Scale = new Vector2(0.4f, 0.4f);
 		}
 
+		RefreshTexture();
+
+	}
+
+	public override void _Draw()
+	{
 	}
 
 //  // Called every frame. 'delta' is the elapsed time since the previous frame.
