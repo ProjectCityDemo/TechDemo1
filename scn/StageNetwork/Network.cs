@@ -89,7 +89,7 @@ public class NetworkInternal
 		var sourceNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SOURCE).ToList();
 		var sinkNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SINK).ToList();
 
-		if (!sourceNodes[0].IsActive() || !sinkNodes[0].IsActive()) { return 0; }
+		if (!sourceNodes[0].IsActive() || !sinkNodes[0].IsActive()) { GD.Print(); return 0; }
 
         //for each optimization, the optimized flow that passes node "x" will only come from one edge
         List<int>[] graph;
