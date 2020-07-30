@@ -89,7 +89,7 @@ public class NetworkInternal
 		var sourceNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SOURCE).ToList();
 		var sinkNodes = Nodes.Where(node => node.Type == NodeType.NODETYPE_SINK).ToList();
 
-		if (!sourceNodes[0].IsActive() || !sinkNodes[0].IsActive()) { GD.Print(); return 0; }
+		if (!sourceNodes[0].IsActive() || !sinkNodes[0].IsActive()) { return 0; }
 
         //for each optimization, the optimized flow that passes node "x" will only come from one edge
         List<int>[] graph;
@@ -153,7 +153,7 @@ public class NetworkInternal
                         travel.Add(tempOutIndex); // next time the node "tempOutIndex" will be the inlet that needs to be considered
                     }
 				}
-				if (augment[sinkIndex] == 0) break; // break this optimization if there is optimized augment in "sink"
+				if (augment[sinkIndex] != 0) break; // break this optimization if there is optimized augment in "sink"
 			}
 			if (augment[sinkIndex] == 0) break; // break the max flow calculation if after a thorough optimization, there is no extra augment that passes "sink"
 			
@@ -168,11 +168,16 @@ public class NetworkInternal
 		return totalFlow;
 	}
 
-	public NetworkInternal(string JsonPath="stgdata/demo-r.json")
+	public NetworkInternal(string JsonPath="res://stgdata/demo-r.json")
 	{
 		this.Nodes = new List<NodeInternal>();
 		this.Edges = new List<EdgeInternal>();
-		var jsonString = System.IO.File.ReadAllText(JsonPath);
+
+		var jsonFile = new File(); // Use Godot API to allow res:// paths.
+		jsonFile.Open(JsonPath, File.ModeFlags.Read);
+		var jsonString = jsonFile.GetAsText();
+		jsonFile.Close();
+
 		using (JsonDocument document = JsonDocument.Parse(jsonString))
 		{
 			JsonElement root = document.RootElement;
@@ -288,6 +293,9 @@ public class Network : Node2D
 	[Signal]
 	public delegate void CostConsume(float CostValue, int NodeID); // emit NodeID to understand the NodeInternal to activate.
 
+	[Signal]
+	public delegate void FlowUpdate(int FlowValue);
+
 	public void ActivateNode(int NodeID)
 	{
 		var node = InternalNetwork.Nodes[NodeID];
@@ -301,13 +309,12 @@ public class Network : Node2D
 	{
 		InternalNetwork.Nodes[NodeID].State = NodeState.NODE_ACTIVE;
 		RefreshTexture();
+		UpdateFlow();
 	}
 
 
 	private void RefreshTexture()
 	{
-		//Debug
-		GD.Print(InternalNetwork.CalculateFlow());
 
 		foreach (var edge in InternalNetwork.Edges)
 		{
@@ -355,11 +362,19 @@ public class Network : Node2D
 		}
 	}
 
+	private void UpdateFlow()
+	{
+		var mainStageContainer = GetNode<MainStageContainer>("../../../MainStageContainer");
+		var flow = (int) InternalNetwork.CalculateFlow();
+		EmitSignal(nameof(FlowUpdate), flow);
+	}
+
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
 		var mainStageContainer = GetNode<MainStageContainer>("../../../MainStageContainer");
 		Connect(nameof(CostConsume), mainStageContainer, "ProcessCostConsume");
+		Connect(nameof(FlowUpdate), mainStageContainer, "ProcessFlowUpdate");
 
 		var edgeWidth = 8;
 

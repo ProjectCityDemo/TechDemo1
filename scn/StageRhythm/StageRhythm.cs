@@ -10,7 +10,9 @@ public class StageRhythm : Node2D
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
-		
+		var timeDelay = AudioServer.GetTimeToNextMix() + AudioServer.GetOutputLatency();
+		var musicPlayer = GetNode<AudioStreamPlayer>("MusicPlayer");
+		musicPlayer.Play();
 	}
 	
 	public void FitDimension(int dev_w, int dev_h)

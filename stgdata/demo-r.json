@@ -1,6 +1,5 @@
 {
-    "sources":
-    [
+    "sources": [
         {
             "x": 100,
             "y": 800,
@@ -8,8 +7,7 @@
             "active": true
         }
     ],
-    "sinks":
-    [
+    "sinks": [
         {
             "x": 800,
             "y": 100,
@@ -17,8 +15,7 @@
             "active": true
         }
     ],
-    "nodes":
-    [
+    "nodes": [
         {
             "x": 450,
             "y": 450,
@@ -26,30 +23,29 @@
             "active": false
         }
     ],
-    "edges":
-    [
+    "edges": [
         {
             "capacity": 10,
-            "link":
-            [
+            "link": [
                 {
                     "type": "source",
                     "index": 0
                 },
-                {   "type": "node",
+                {
+                    "type": "node",
                     "index": 0
                 }
             ]
         },
         {
             "capacity": 20,
-            "link":
-            [
+            "link": [
                 {
                     "type": "sink",
                     "index": 0
                 },
-                {   "type": "node",
+                {
+                    "type": "node",
                     "index": 0
                 }
             ]

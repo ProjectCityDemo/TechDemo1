@@ -22,6 +22,8 @@ public class StageNetwork : Node2D
 		
 		BGRect.SetSize(new Vector2(dev_w / 2, dev_h));
 		
+		var transform = new Transform2D(0, new Vector2(0, 0));
+		
 	}
 
 

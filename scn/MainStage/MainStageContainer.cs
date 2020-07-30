@@ -10,7 +10,8 @@ public class MainStageContainer : HBoxContainer
 	private int Width = 0;
 	private int Height = 0;
 	private float Cost = 0;
-	
+	private int Flow = 0;
+
 	private void PrepareStageRhythm()
 	{
 		var packedStageRhythm = GD.Load<PackedScene>("res://scn/StageRhythm.tscn");
@@ -65,6 +66,11 @@ public class MainStageContainer : HBoxContainer
 		}
 	}
 
+	public void ProcessFlowUpdate(int FlowValue)
+	{
+		Flow = FlowValue;
+	}
+
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
@@ -82,7 +88,10 @@ public class MainStageContainer : HBoxContainer
 	{
 		Cost += delta * 5;
 		var CostLabel = GetNode<Label>("HUD/CostLabel");
+		var FlowLabel = GetNode<Label>("HUD/FlowLabel");
+
 		var displayCost = (int) Cost;
 		CostLabel.Text = "Cost: " + displayCost.ToString();
+		FlowLabel.Text = "Flow: " + Flow.ToString();
 	}
 }

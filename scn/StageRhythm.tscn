@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
 
 [ext_resource path="res://scn/StageRhythm/StageRhythm.cs" type="Script" id=1]
+[ext_resource path="res://music/demo.ogg" type="AudioStream" id=2]
 
 [node name="StageRhythm" type="Node2D"]
 script = ExtResource( 1 )
@@ -17,3 +18,6 @@ __meta__ = {
 points = PoolVector2Array( 0, 900, 960, 900 )
 width = 5.0
 default_color = Color( 1, 1, 1, 1 )
+
+[node name="MusicPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource( 2 )
